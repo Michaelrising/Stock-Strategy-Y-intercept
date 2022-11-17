@@ -49,7 +49,6 @@ def exponential_ma(stocks, ticker):
     train_ticker = ticker_stock[:train_len]
     test_ticker = ticker_stock[train_len:]
 
-    window_size = 100
 
     run_avg_predictions = []
 

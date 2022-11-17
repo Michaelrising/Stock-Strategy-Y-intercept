@@ -7,6 +7,8 @@ from torch.utils.tensorboard import SummaryWriter
 import time
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
+from datetime import datetime
+import os
 
 # lstm model
 class LSTM(nn.Module):
@@ -61,28 +63,30 @@ def load_data(stock, look_back):
     return [x_train, y_train, x_test, y_test]
 
 if __name__ == '__main__':
+    summary_dir = '../Log/' + datetime.now().strftime("%Y%m%d-%H%M")
+    if not os.path.exists(summary_dir):
+        os.mkdir(summary_dir)
+    writer = SummaryWriter(log_dir=summary_dir)
     num_epochs = 1000
     # create model
     input_dim = 1
     hidden_dim = 128
     num_layers = 2
     output_dim = 1
-
-    model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-
-    loss_fn = torch.nn.MSELoss()
-
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
-
+    device ='cuda:0'
     look_back = 60  # choose sequence length
     all_stocks = StockData().all_his_of_tickers()
+    model_dict = {}
     for ticker in all_stocks:
         stock_ticker = all_stocks[ticker]
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        stock_ticker['last'] = scaler.fit_transform(stock_ticker['last'].values.reshape(-1, 1))
+        stock_ticker['volume'] = scaler.fit_transform(stock_ticker['volume'].values.reshape(-1, 1))
         x_train, y_train, x_test, y_test = load_data(stock_ticker, look_back)
         # make training and test sets in torch
-        x_train = torch.from_numpy(x_train).type(torch.Tensor)
-        x_test = torch.from_numpy(x_test).type(torch.Tensor)
-        y_train = torch.from_numpy(y_train).type(torch.Tensor)
+        x_train = torch.from_numpy(x_train).type(torch.Tensor).device(device)
+        x_test = torch.from_numpy(x_test).type(torch.Tensor).device(device)
+        y_train = torch.from_numpy(y_train).type(torch.Tensor).device(device)
         y_test = torch.from_numpy(y_test).type(torch.Tensor)
         print('x_train.shape = ', x_train.shape)
         print('y_train.shape = ', y_train.shape)
@@ -91,15 +95,18 @@ if __name__ == '__main__':
 
         stock_ticker=stock_ticker.fillna(method='ffill')
 
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        stock_ticker['last'] = scaler.fit_transform(stock_ticker['last'].values.reshape(-1,1))
-
         # Train model
         #####################
         hist = np.zeros(num_epochs)
 
         # Number of steps to unroll
         seq_dim = look_back - 1
+
+        model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+
+        loss_fn = torch.nn.MSELoss()
+
+        optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
 
         for t in range(num_epochs):
             y_train_pred = model(x_train)
@@ -108,13 +115,16 @@ if __name__ == '__main__':
             if t % 10 == 0 and t != 0:
                 print("Epoch ", t, "MSE: ", loss.item())
             hist[t] = loss.item()
+            writer.add_scalar(ticker+'/loss', loss.item())
 
             optimiser.zero_grad()
             loss.backward()
             optimiser.step()
 
+
         # make predictions
         y_test_pred = model(x_test)
+        model_dict[ticker] = model.parameters()
 
         # invert predictions
         y_train_pred = scaler.inverse_transform(y_train_pred.detach().numpy())
