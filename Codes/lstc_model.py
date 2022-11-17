@@ -119,6 +119,12 @@ if __name__ == '__main__':
     summary_dir = '../Log/' + datetime.now().strftime("%Y%m%d-%H%M")
     if not os.path.exists(summary_dir):
         os.mkdir(summary_dir)
+    model_dir = summary_dir + '/models'
+    if not os.path.exists(model_dir):
+        os.mkdir(model_dir)
+    fig_dir = summary_dir + '/figures'
+    if not os.path.exists(fig_dir):
+        os.mkdir(fig_dir)
     writer = SummaryWriter(log_dir=summary_dir)
     num_epochs = 5000
     # create model
@@ -131,6 +137,7 @@ if __name__ == '__main__':
     all_stocks = StockData().all_his_of_tickers()
     model_dict = {}
     for ticker in all_stocks:
+        checkpoint_path = model_dir + '/' + ticker + '.pth'
         print('=========================================')
         print('The current training stock is: ' + ticker)
         print('=========================================')
@@ -189,7 +196,9 @@ if __name__ == '__main__':
                 early_stopping(testScore, model.parameters())
             if early_stopping.early_stop:
                 break
-        model_dict[ticker] = model.parameters()
+        # model save to local
+        torch.save(model.state_dict(), checkpoint_path)
+        # model_dict[ticker] = model.parameters()
 
         # invert predictions
         y_train_pred = scaler1.inverse_transform(y_train_pred.cpu().detach().numpy())
@@ -217,6 +226,6 @@ if __name__ == '__main__':
         plt.xticks([])
         plt.ylabel(ticker + ' Stock Price')
         plt.legend()
-        plt.savefig(summary_dir + '/' + ticker +'_pred.png')
+        plt.savefig(fig_dir + '/' + ticker +'_pred.png')
         # plt.show()
 
