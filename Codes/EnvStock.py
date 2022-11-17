@@ -15,8 +15,9 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class StockStrategy(gym.Env, StockData):
-    def __init__(self, tickers, model_path, look_back = 60, input_dim = 1, hidden_dim = 128, num_layers = 2, output_dim = 1, device ='cuda:1'):
-        super().__init__(tickers, model_path)
+    def __init__(self, tickers, model_path, money=10**5, pred_T=7, r = 0.01, look_back = 60, input_dim = 1, hidden_dim = 128, num_layers = 2, output_dim = 1, device ='cuda:1'):
+        super().__init__(tickers, model_path, money, r, pred_T)
+        # money is the initial money u have, r is the interest rate of risk-free investment
         self.dict_of_tickers = self.selected_tickers(tickers)
         # tickers: denotes the strategy of buying or selling of these stocks
         self.SelectTickers = sorted(tickers)
@@ -42,6 +43,10 @@ class StockStrategy(gym.Env, StockData):
         self.curr_stock_states = np.zeros(len(tickers))
         self.data_pre(look_back, device)
         self.steps = 0
+        self.money = money
+        self.pred_T = pred_T
+        self.look_back = look_back
+        self.device = device
 
     def data_pre(self, look_back, device):
         # all the tickers have to start in the same date and we force them to by prediction of pre-trained LSTM model
@@ -82,10 +87,29 @@ class StockStrategy(gym.Env, StockData):
 
     def step(self, action):
         # hypothesis: at first we have one share for all stocks
-        actions = list(self.action_sets[action])
+        actions = np.array(list(self.action_sets[action])) - 1
         states_be4_action = self.curr_stock_states
         self.StockStates()
         states_aft_action = self.curr_stock_states
+        # define reward function
+        prices_diff = states_aft_action - states_be4_action
+        reward = 0
+        # action meaning: 0: sell 1: hold 2: buy
+        reward += actions * prices_diff
+        done = bool(self.money<0 or self.steps >= self.pred_T)
+
+        return states_aft_action, reward, done
+
+
+    def reset(self):
+        self.data_pre(self.look_back, self.device)
+        return self.curr_stock_states
+
+
+
+
+
+
 
 
 
