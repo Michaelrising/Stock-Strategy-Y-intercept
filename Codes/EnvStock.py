@@ -80,7 +80,8 @@ class StockStrategy(gym.Env, StockData):
             model = self.model_dicts[ticker]
             look_back_data = self.look_back_data[ticker]
             scaler = self.scalers[ticker]
-            stock_state = model(look_back_data)
+            with torch.no_grad():
+                stock_state = model(look_back_data)
             look_back_data = torch.cat((look_back_data, stock_state.unsqueeze(1)), 1)
 
             # back to real price

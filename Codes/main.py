@@ -206,14 +206,14 @@ def train(summary_dir, pars, configs):
             writer.add_scalar('VLoss', loss, i_update)
         writer.add_scalar("Reward/train", mean_rewards_all_env, i_update)
 
-        if i_update % eval_interval == 0:
-            # rewards, survivalMonth, actions, states, colors = evaluate(test_env, ppo_agent.policy_old, eval_times)
-            g_rewards, rewardSeq, ActionSeq, ActSeq, ModeSeq, TimeSeq = greedy_evaluate(test_env, ppo_agent.policy_old)
-            # writer.add_scalar("Reward/evaluate", rewards, i_update)
-            writer.add_scalar("Reward/greedy_evaluate", g_rewards, i_update)
-            torch.save(ppo_agent.policy_old.state_dict(),summary_dir + '/PPO-ProgramEnv-converge-model-{}.pth'.format(configs.filepath[2:-3]))
-            print(" Test Total reward:{} \n Test rewards List:{} \n Test Actions:{} \n Test Acts:{} \n Test Modes: {} \n Test Times:{}".format(np.round(g_rewards, 3),rewardSeq, ActionSeq, ActSeq,ModeSeq, TimeSeq))
-        #
+        # if i_update % eval_interval == 0:
+        #     # rewards, survivalMonth, actions, states, colors = evaluate(test_env, ppo_agent.policy_old, eval_times)
+        #     g_rewards, rewardSeq, ActionSeq, ActSeq, ModeSeq, TimeSeq = greedy_evaluate(test_env, ppo_agent.policy_old)
+        #     # writer.add_scalar("Reward/evaluate", rewards, i_update)
+        #     writer.add_scalar("Reward/greedy_evaluate", g_rewards, i_update)
+        #     torch.save(ppo_agent.policy_old.state_dict(),summary_dir + '/PPO-ProgramEnv-converge-model-{}.pth'.format(configs.filepath[2:-3]))
+        #     print(" Test Total reward:{} \n Test rewards List:{} \n Test Actions:{} \n Test Acts:{} \n Test Modes: {} \n Test Times:{}".format(np.round(g_rewards, 3),rewardSeq, ActionSeq, ActSeq,ModeSeq, TimeSeq))
+        # #
     # print total training time
     print("============================================================================================")
     end_time = datetime.now().replace(microsecond=0)
