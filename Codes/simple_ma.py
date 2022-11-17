@@ -42,6 +42,41 @@ def simple_ma(stocks, ticker):
     return ticker_stock['Cum_Profit'][-1]
 
 
+def exponential_ma(stocks, ticker):
+    ticker_stock = stocks[ticker]
+    stock_lenth = len(ticker_stock)
+    train_len = int(0.8 * stock_lenth)
+    train_ticker = ticker_stock[:train_len]
+    test_ticker = ticker_stock[train_len:]
+
+    window_size = 100
+
+    run_avg_predictions = []
+
+    mse_errors = []
+
+    running_mean = 0.0
+    run_avg_predictions.append(running_mean)
+
+    decay = 0.5
+# calculate the exponential moving average of stock
+    for pred_idx in range(1, train_len):
+        running_mean = running_mean * decay + (1.0 - decay) * train_ticker['last'][pred_idx - 1]
+        run_avg_predictions.append(running_mean)
+        mse_errors.append((run_avg_predictions[-1] - train_ticker['last'][pred_idx]) ** 2)
+        # run_avg_x.append(date)
+
+    print('MSE error for EMA averaging: %.5f' % (0.5 * np.mean(mse_errors)))
+
+    plt.figure()
+    plt.plot(range(ticker_stock.shape[0]), ticker_stock['last'], color='b', label='True')
+    plt.plot(range(0, train_len), run_avg_predictions, color='orange', label='Prediction')
+    plt.xlabel('Date')
+    plt.ylabel('Mid Price')
+    plt.legend(fontsize=18)
+    plt.show()
+
+
 if __name__ == '__main__':
     file_path = '../Data/data.csv'
     stocks = StockData(file_path)
