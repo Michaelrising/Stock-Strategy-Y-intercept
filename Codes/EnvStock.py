@@ -91,6 +91,7 @@ class StockStrategy(gym.Env, StockData):
 
 
     def step(self, action):
+        self.steps += 1
         # hypothesis: at first we have one share for all stocks
         actions = np.array(list(self.action_sets[action])) - 1
         states_be4_action = self.curr_stock_states
