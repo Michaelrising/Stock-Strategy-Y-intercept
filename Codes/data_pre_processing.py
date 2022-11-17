@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import time
-
+from datetime import datetime
+pd.options.mode.chained_assignment = None
 
 class StockData:
     def __init__(self, file_path ='../Data/data.csv'):
@@ -13,13 +13,13 @@ class StockData:
         self.dict_of_tickers = {}
 
     def his_of_ticker(self, ticker):
-        start_date = []
-        end_date = []
+        start_date = 0
+        end_date = 0
         if ticker in self.tickers:
-            ticker_his = self.all_data[self.all_data['ticker']==ticker]
-            ticker_his['date'] = ticker_his['date'].apply(lambda x: time.strptime(x, '%Y-%m-%d'))
-            start_date.append(ticker_his['date'][0])
-            end_date.append(ticker_his['date'][-1])
+            ticker_his = self.all_data.loc[self.all_data.ticker==ticker]
+            ticker_his.date = ticker_his.date.apply(lambda x: datetime.strptime(x, '%Y-%m-%d').date())
+            start_date=ticker_his.date[ticker_his.index[0]]
+            end_date=ticker_his.date[ticker_his.index[-1]]
         else:
             raise ValueError
         return ticker_his, start_date, end_date
@@ -73,10 +73,10 @@ class StockData:
 
 
 
-file_path = '../Data/data.csv'
-stocks = StockData(file_path)
-all_his_of_tickers = stocks.all_his_of_tickers()
-
+# file_path = '../Data/data.csv'
+# stocks = StockData(file_path)
+# all_his_of_tickers = stocks.all_his_of_tickers()
+#
 
 
 

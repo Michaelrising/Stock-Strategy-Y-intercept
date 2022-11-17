@@ -35,20 +35,17 @@ def set_device(cuda=None):
 
 def train(summary_dir, pars, configs):
     ################## set device ##################
-    device = 'cuda:0' #set_device() if configs.cuda_cpu == "cpu" else set_device(configs.cuda)
+    device = 'cuda:1' #set_device() if configs.cuda_cpu == "cpu" else set_device(configs.cuda)
 
     ####### initialize environment hyperparameters ######
 
     num_env = configs.num_envs
     max_updates = configs.max_updates
     eval_interval = 50
-    has_continuous_action_space = False  # continuous action space; else discrete
-
-    max_ep_len = 120  # max timesteps in one episode
+    max_ep_len = 64  # max timesteps in one episode
 
     print_freq = 2  # print avg reward in the interval (in num updating steps)
     log_freq = 2  # log avg reward in the interval (in num updating steps)
-    action_std = 0.6  # starting std for action distribution (Multivariate Normal)
     explore_eps = 0.8
 
     ####################################################
@@ -67,13 +64,13 @@ def train(summary_dir, pars, configs):
     lr_critic = 0.00005*3  # learning rate for critic network
 
     ########################### Env Parameters ##########################
+    tickers, model_path, money, r, pred_T = pars
+    envs = [StockStrategy(tickers=tickers, model_path=model_path, money=money, r=r, pred_T=pred_T) for _ in range(configs.num_envs)]
 
-    envs = [StockStrategy(*pars) for _ in range(configs.num_envs)]
-
-    test_env = StockStrategy(*pars) # gym.make(configs.env_id, patient=patient).unwrapped
+    test_env = StockStrategy(tickers=tickers, model_path=model_path, money=money, r=r, pred_T=pred_T) # gym.make(configs.env_id, patient=patient).unwrapped
 
     # state space dimension
-    state_dim = envs[0].action_space.n * 3
+    state_dim = len(tickers)
 
     # action space dimension
     action_dim = envs[0].action_space.n
@@ -153,11 +150,6 @@ def train(summary_dir, pars, configs):
 
     print("============================================================================================")
 
-    # logging file
-    # log_f = open(act_log_f_name, "w+")
-    # log_f.write('Sample Actions List, Greedy Actions List\n')
-
-    # ppo_agent.buffers = [ppo_agent.buffer for _ in range(configs.num_env)]
     ep_rewards = [[] for _ in range(num_env)]
     ep_dones = [[] for _ in range(num_env)]
     num_episods = [0 for _ in range(num_env)]
@@ -175,7 +167,7 @@ def train(summary_dir, pars, configs):
                 num_episods[i] += 1
                 eps = max(- max(i_update - 10000, 0) * (explore_eps - 0.5) / 10000 + explore_eps, 0.5)
                 determine = np.random.choice(2, p=[1 - eps, eps])  # explore epsilon
-                _, fea, _ = env.reset()
+                fea= env.reset()
                 while True:
                     # select action with policy, with torch.no_grad()
 
@@ -241,8 +233,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_envs', type=int, default= 2)
     parser.add_argument('--max_updates', type=int, default=10**5)
     parser.add_argument('--decayflag', type=str, default=True)
-    parser.add_argument('--tickers', type=list, default=[])
-    parser.add_argument('--model_path', type=str, default='')
+    parser.add_argument('--tickers', type=list, default=['1332 JT', '1333 JT', '1605 JT'])
+    parser.add_argument('--model_path', type=str, default='../Log/20221118-0641/models')
     parser.add_argument('--money', type=int, default=10**5)
     parser.add_argument('--pred_T', type=int, default=7)
     parser.add_argument('--interest_rate', type=float, default=0.01)
@@ -250,7 +242,7 @@ if __name__ == '__main__':
 
     configs=parser.parse_args()
 
-    pars = (configs.tickers, configs.model_path, configs.money, configs.pred_T, configs.r)
+    pars = (configs.tickers, configs.model_path, configs.money, configs.pred_T, configs.interest_rate)
     train(summary_dir, pars, configs)
 
 

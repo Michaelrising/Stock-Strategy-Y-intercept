@@ -15,10 +15,11 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 class StockStrategy(gym.Env, StockData):
-    def __init__(self, tickers, model_path, money=10**5, pred_T=7, r = 0.01, look_back = 60, input_dim = 1, hidden_dim = 128, num_layers = 2, output_dim = 1, device ='cuda:1'):
-        super().__init__(tickers, model_path, money, r, pred_T)
+    def __init__(self, tickers, model_path, money, pred_T, r, look_back=60, input_dim=1, hidden_dim=128, num_layers=2,
+                 output_dim=1, device='cuda:1'):
         # money is the initial money u have, r is the interest rate of risk-free investment
-        self.dict_of_tickers = self.selected_tickers(tickers)
+        super().__init__()
+        self.dict_of_tickers, _, end_date = self.selected_tickers(tickers)
         # tickers: denotes the strategy of buying or selling of these stocks
         self.SelectTickers = sorted(tickers)
         self.action_space =  spaces.Discrete(3 ** len(tickers)) # each stock has 3 strategy buy sell or hold
@@ -27,7 +28,7 @@ class StockStrategy(gym.Env, StockData):
         self.observation_space = spaces.Box(low = np.zeros(len(tickers)), high = np.ones(len(tickers)))
         self.model_dicts = {}
         self.scalers = {}
-        self.start_date =  0
+        self.start_date =  max(end_date)
         for ticker in self.SelectTickers:
             scaler = MinMaxScaler(feature_range=(0, 1))
             stock_ticker = self.dict_of_tickers[ticker]
@@ -35,10 +36,9 @@ class StockStrategy(gym.Env, StockData):
             stock_ticker['last'] = scaler.fit_transform(stock_ticker['last'].values.reshape(-1, 1))
             self.scalers[ticker] = scaler
             model = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers).to(device)
-            model.load_state_dict(model_path + '/' + ticker +'.pth')
+            model.load_state_dict(torch.load(model_path + '/' + ticker +'.pth'))
             model.eval()
             self.model_dicts[ticker] = model
-            self.start_date = self.dict_of_tickers[ticker][-1] if self.start_date == 0 else max(self.start_date, self.dict_of_tickers[ticker][-1])
         self.look_back_data = {}
         self.curr_stock_states = np.zeros(len(tickers))
         self.data_pre(look_back, device)
@@ -54,18 +54,21 @@ class StockStrategy(gym.Env, StockData):
             stock = self.dict_of_tickers[ticker]
             model = self.model_dicts[ticker]
             scaler = self.scalers[ticker]
-            last_date = stock['date'][-1]
+            last_date = stock.date[stock.index[-1]]
+
             data_raw = np.array(stock['last'])  # convert to numpy array
             # create the last possible sequences of length look_back
-            data = data_raw[len(data_raw)-look_back: ]
+            data = data_raw[len(data_raw)-look_back+1: ]
             data = torch.from_numpy(data.reshape(1, -1, 1)).type(torch.Tensor).to(device)
             if last_date < self.start_date:
-                for i in range(self.start_date - last_date):
-                    new_data = model(data)
+                days = self.start_date - last_date
+                for i in range(days.days): # days.days
+                    with torch.no_grad():
+                        new_data = model(data)
                     # new_data = new_data.cpu().detach().numpy()
-                    data = torch.cat((data, new_data.view(1, -1, 1)), 1)
+                    data = torch.cat((data, new_data.unsqueeze(1)), 1)
                     # data = np.append(data.detach().numpy().reshape(-1), new_data)
-                    data = data[:, 1:, :] # torch.from_numpy(data[1:].reshape(1, -1, 1)).type(torch.Tensor).to(device)
+                    data = data[:, 1:, :]
             self.curr_stock_states[j] = scaler.inverse_transform(data[:, -1, :].cpu().detach().numpy())
             self.look_back_data[ticker] = data
 
@@ -78,10 +81,11 @@ class StockStrategy(gym.Env, StockData):
             look_back_data = self.look_back_data[ticker]
             scaler = self.scalers[ticker]
             stock_state = model(look_back_data)
-            look_back_data = torch.cat((look_back_data, stock_state.view(1, -1, 1)), 1)
+            look_back_data = torch.cat((look_back_data, stock_state.unsqueeze(1)), 1)
+
             # back to real price
-            stockstates.append(scaler.inverse_transform(stock_state.cup().detach().numpy()))
-            self.look_back_data[ticker] = look_back_data
+            stockstates.append(scaler.inverse_transform(stock_state.cpu().detach().numpy()))
+            self.look_back_data[ticker] = look_back_data[:, 1: , :]
         self.curr_stock_states = np.array(stockstates).reshape(-1)
 
 
@@ -94,8 +98,9 @@ class StockStrategy(gym.Env, StockData):
         # define reward function
         prices_diff = states_aft_action - states_be4_action
         reward = 0
-        # action meaning: 0: sell 1: hold 2: buy
-        reward += actions * prices_diff
+        # action meaning: 0: sell 1: buy 2: hold
+        reward += sum(actions * prices_diff)
+        self.money -= sum(actions * states_be4_action)
         done = bool(self.money<0 or self.steps >= self.pred_T)
 
         return states_aft_action, reward, done
@@ -103,6 +108,7 @@ class StockStrategy(gym.Env, StockData):
 
     def reset(self):
         self.data_pre(self.look_back, self.device)
+        self.money=10**5
         return self.curr_stock_states
 
 
