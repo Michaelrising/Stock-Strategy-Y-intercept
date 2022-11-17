@@ -102,7 +102,7 @@ class StockStrategy(gym.Env, StockData):
         # action meaning: 0: sell 1: buy 2: hold
         reward += sum(actions * prices_diff)
         self.money -= sum(actions * states_be4_action)
-        done = bool(self.money<0 and self.steps <= self.pred_T)
+        done = bool(bool(self.money < 0) or bool(self.steps >= self.pred_T))
 
         return states_aft_action, reward, done
 

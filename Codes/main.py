@@ -50,7 +50,7 @@ def train(summary_dir, pars, configs):
 
     ####################################################
     ################ PPO hyperparameters ################
-    batch_size = 14
+    batch_size = 64
     decay_step_size = 1000
     decay_ratio = 0.8
     grad_clamp = 0.2
