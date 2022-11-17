@@ -8,7 +8,7 @@ import time
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 
-# Here we define our model
+# lstm model
 class LSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, output_dim):
         super(LSTM, self).__init__()
@@ -40,7 +40,7 @@ class LSTM(nn.Module):
 # function to create train, test data given stock data and sequence length
 def load_data(stock, look_back):
 
-    data_raw = stock['last']  # convert to numpy array
+    data_raw = np.array(stock['last'])  # convert to numpy array
     data = []
 
     # create all possible sequences of length look_back
@@ -48,21 +48,22 @@ def load_data(stock, look_back):
         data.append(data_raw[index: index + look_back])
 
     data = np.array(data)
+    # data = np.expand_dims(data, 0)
     test_set_size = int(np.round(0.2 * data.shape[0]))
     train_set_size = data.shape[0] - (test_set_size)
 
-    x_train = data[:train_set_size, :-1, :]
-    y_train = data[:train_set_size, -1, :]
+    x_train =  np.expand_dims(data[:train_set_size, :-1], 2)
+    y_train = data[:train_set_size, -1].reshape(train_set_size, -1)
 
-    x_test = data[train_set_size:, :-1]
-    y_test = data[train_set_size:, -1, :]
+    x_test =  np.expand_dims(data[train_set_size:, :-1], 2)
+    y_test = data[train_set_size:, -1].reshape(test_set_size, -1)
 
     return [x_train, y_train, x_test, y_test]
 
 if __name__ == '__main__':
     num_epochs = 1000
     # create model
-    input_dim = 2
+    input_dim = 1
     hidden_dim = 128
     num_layers = 2
     output_dim = 1
@@ -71,17 +72,18 @@ if __name__ == '__main__':
 
     loss_fn = torch.nn.MSELoss()
 
-    optimiser = torch.optim.Adam(model.parameters(), lr=0.01)
-    # print(model)
-    print(len(list(model.parameters())))
-    for i in range(len(list(model.parameters()))):
-        print(list(model.parameters())[i].size())
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
 
     look_back = 60  # choose sequence length
     all_stocks = StockData().all_his_of_tickers()
     for ticker in all_stocks:
         stock_ticker = all_stocks[ticker]
         x_train, y_train, x_test, y_test = load_data(stock_ticker, look_back)
+        # make training and test sets in torch
+        x_train = torch.from_numpy(x_train).type(torch.Tensor)
+        x_test = torch.from_numpy(x_test).type(torch.Tensor)
+        y_train = torch.from_numpy(y_train).type(torch.Tensor)
+        y_test = torch.from_numpy(y_test).type(torch.Tensor)
         print('x_train.shape = ', x_train.shape)
         print('y_train.shape = ', y_train.shape)
         print('x_test.shape = ', x_test.shape)

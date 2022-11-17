@@ -11,4 +11,4 @@ file_path = '../Data/data.csv'
 stocks = StockData(file_path)
 
 
-# STOCHASTIC OSCILLATOR CALCULATION
+
