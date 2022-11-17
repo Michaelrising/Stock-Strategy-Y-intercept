@@ -7,6 +7,7 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 import os
 from datetime import datetime
+import argparse
 # device = torch.device(configs.device)
 
 
@@ -68,11 +69,6 @@ def train(summary_dir, pars, configs):
     ########################### Env Parameters ##########################
 
     envs = [StockStrategy(*pars) for _ in range(configs.num_envs)]
-    torch.manual_seed(configs.torch_seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(configs.torch_seed)
-    np.random.seed(configs.np_seed_train)
-
 
     test_env = StockStrategy(*pars) # gym.make(configs.env_id, patient=patient).unwrapped
 
@@ -98,7 +94,6 @@ def train(summary_dir, pars, configs):
     ############# print all hyperparameters #############
 
     print("--------------------------------------------------------------------------------------------")
-    print("Reward mode:" + configs.mode)
     print("num of envs : " + str(num_env))
     print("max training updating times : ", max_updates)
     print("max timesteps per episode : ", max_ep_len)
@@ -242,9 +237,21 @@ if __name__ == '__main__':
     if not os.path.exists(summary_dir):
         os.makedirs(summary_dir)
     total1 = time.time()
-    pars = (
-        configs.filepath, configs.Target_T, configs.price_renew, configs.price_non, configs.penalty0, configs.penalty1, configs.mode, configs.ppo)
-    train(summary_dir, pars)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_envs', type=int, default= 2)
+    parser.add_argument('--max_updates', type=int, default=10**5)
+    parser.add_argument('--decayflag', type=str, default=True)
+    parser.add_argument('--tickers', type=list, default=[])
+    parser.add_argument('--model_path', type=str, default='')
+    parser.add_argument('--money', type=int, default=10**5)
+    parser.add_argument('--pred_T', type=int, default=7)
+    parser.add_argument('--interest_rate', type=float, default=0.01)
+
+
+    configs=parser.parse_args()
+
+    pars = (configs.tickers, configs.model_path, configs.money, configs.pred_T, configs.r)
+    train(summary_dir, pars, configs)
 
 
 
