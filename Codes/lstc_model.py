@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from data_pre_processing import *
 from torch.utils.tensorboard import SummaryWriter
+import time
 
 class lstm_model(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim, num_layers):
@@ -32,20 +33,32 @@ def train(stocks, ticker):
     ticker_stock = stocks.his_of_ticker(ticker)
     stock_lenth = len(ticker_stock)
     train_len = int(0.8*stock_lenth)
-
+    train_ticker = ticker_stock[:train_len]
+    test_ticker = ticker_stock[train_len:]
+    num_epoch = 100000
     # LSTM model
-    input_dim = 6
-    hidden_dim = 512
-    num_layers = 6
+    input_dim = 2
+    hidden_dim = 256
+    num_layers = 3
     output_dim = 1
     model = lstm_model(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-    # k = torch.rand(8, 20, 2).cuda()  # random input
-    # with SummaryWriter(comment='lstm') as w:
-    #     w.add_graph(model, (k,))
-    # print(model)
 
     loss_function = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    for epoch in range(num_epoch):
+        epoch_start_time = time.time()
+        train_loss = 0
+        train_acc = 0.0
+        val_loss = 0
+        val_acc = 0.0
+        model.train()
+        optimizer.zero_grad()
+        price_pred = model(train_ticker.cuda())
+        loss = loss_function(price_pred, train_ticker.cuda())
+        loss.backward()
+        optimizer.step()
+
 
 
 
